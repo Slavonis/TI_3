@@ -1,0 +1,575 @@
+﻿//---------------------------------------------------------------------------
+
+#include <vcl.h>
+#include <System.IOUtils.hpp>
+#include "Math.h"
+#pragma hdrstop
+
+#include <set>
+#include <iostream>
+#include <fstream>
+#include <bitset>
+#include <stdio.h>
+#include <cstdint>
+#include "string.h"
+#include "Unit2.h"
+//---------------------------------------------------------------------------
+#pragma package(smart_init)
+#pragma resource "*.dfm"
+TMainForm* MainForm;
+//---------------------------------------------------------------------------
+__fastcall TMainForm::TMainForm(TComponent* Owner) : TForm(Owner) {}
+//---------------------------------------------------------------------------
+
+char* src;
+char* key;
+char* res;
+int size = 0;
+int res_size = 0;
+
+const int MAX_OPTION = 2;
+const int MIN_EXT = 5;
+const int MIN_LEN = 1;
+const int MAX_LEN = 32;
+const int MIN_TEXT = 1;
+const int MAX_TEXT = 255;
+const int MAX_NUM = 2000000;
+
+enum TErrorCode
+{
+    CORRECT,
+    INCORRECT_CHOICE,
+    NON_NUMERIC,
+    OUT_OF_RANGE,
+    FILE_NOT_TXT,
+    FILE_NOT_EXIST,
+    FILE_NOT_READABLE,
+    FILE_NOT_WRITABLE,
+    FILE_IS_EMPTY,
+    FILE_NOT_FULL
+};
+
+const std::wstring ERR[] = { L"",
+    L"Error. Incorrect choice. Please try again. ",
+    L"Error. Non-numeric value. Please try again. ",
+    L"Error. Out of Range. Please try again. ",
+    L"Error. File not .txt. Please try again. ",
+    L"Error. File not Exist. Please try again. ",
+    L"Error. File not readable. Please try again. ",
+    L"Error. File not writable. Please try again. ",
+    L"Error. File is empty. Please try again. ",
+    L"Error. The file lacks sufficient information . Please try again. " };
+
+std::wstring __fastcall getExtension(
+    const std::wstring &str, const int posStart, const int posEnd)
+{
+    int i;
+    std::wstring extension;
+    extension = L"";
+    for (i = posStart; i < posEnd; i++) {
+        extension += str[i];
+    }
+    return extension;
+}
+
+TErrorCode __fastcall isFileExist(std::wstring &pathToFile)
+{
+    TErrorCode error;
+    std::ifstream fileName(pathToFile);
+    error = CORRECT;
+    if (!fileName) {
+        error = FILE_NOT_EXIST;
+    }
+    return error;
+}
+
+TErrorCode __fastcall isFileReadable(const std::ifstream &fileName)
+{
+    TErrorCode error;
+    error = CORRECT;
+    if (!fileName.is_open()) {
+        error = FILE_NOT_READABLE;
+    }
+    return error;
+}
+
+TErrorCode __fastcall isFileWritable(const std::ofstream &fileName)
+{
+    TErrorCode error;
+    error = CORRECT;
+    if (!fileName.is_open()) {
+        error = FILE_NOT_WRITABLE;
+    }
+    return error;
+}
+
+void __fastcall TMainForm::N3Click(TObject* Sender)
+{
+    TMainForm::btFileClick(Sender);
+}
+//---------------------------------------------------------------------------
+void __fastcall TMainForm::btClearClick(TObject* Sender)
+{
+    reDestText->Text = "";
+    reOpenKey->Text = "";
+    reCloseKey->Text = "";
+    reSrcText->Text = "";
+	edP->Text = "";
+	edQ->Text = "";
+	edB->Text = "";
+}
+//---------------------------------------------------------------------------
+char* resizeArray(char* arr, int &currentCapacity)
+{
+	int newCapacity = currentCapacity * 2;
+	char* newArr = new char[newCapacity];
+
+	for (int i = 0; i < currentCapacity; i++) {
+		newArr[i] = arr[i];
+		//String str = IntToHex(newArr[i])+ "<====" + IntToHex(arr[i]);
+		//Application->MessageBox(
+		//	 str.w_str(), L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+
+	delete[] arr;
+	currentCapacity = newCapacity;
+    return newArr;
+}
+//---------------------------------------------------------------------------
+String printArr(char* arr, int arr_size){
+	String binaryStr = "";
+	int counter = 0;
+	unsigned int num = 0;
+    char ch;
+	if (arr_size > 15) {
+		int nums = 10;
+		for (int j = 0; j < nums; j++) {
+			ch = arr[j];
+			if (ch != ' ') {
+				num = abs(ch);
+				binaryStr += StrToInt(num);
+				binaryStr += ' ';
+			} else {
+				nums++;
+            }
+		}
+		num = 0;
+		binaryStr += "\n---------------------------------------------\n";
+		for (int j = arr_size - 10; j < arr_size; j++) {
+			ch = arr[j];
+            if (ch != ' ') {
+				num = abs(ch);
+				binaryStr += StrToInt(num);
+				binaryStr += ' ';
+			}
+		}
+	} else {
+		num = 0;
+		for (int j = 0; j < arr_size; j++) {
+			ch = arr[j];
+			if (ch != ' ') {
+				num = abs(ch);
+				binaryStr += StrToInt(num);
+				binaryStr += ' ';
+			}
+		}
+	}
+	return binaryStr;
+}
+//---------------------------------------------------------------------------
+String print_sif_Arr(char* arr, int arr_size){
+	String binaryStr = "";
+	int counter = 0;
+	unsigned int num = 0;
+    char ch;
+	if (arr_size > 50) {
+		int nums = 10;
+		int j = 0;
+		while (nums && j < arr_size){
+			for (int i = 0; i < 4; i++){
+				ch = arr[j + i];
+				num += ((ch & 0xFF) << (8*i));
+			}
+			j += 5;
+			nums--;
+			binaryStr += StrToInt(num);
+			binaryStr += ' ';
+			num = 0;
+		}
+		binaryStr += "\n---------------------------------------------\n";
+		j = arr_size - 50;
+		while (j < arr_size){
+			for (int i = 0; i < 4; i++){
+				ch = arr[j + i];
+				num += ((ch & 0xFF) << (8*i));
+			}
+			j += 5;
+			binaryStr += StrToInt(num);
+			binaryStr += ' ';
+			num = 0;
+		}
+	} else {
+		int j = 0;
+		while (j < arr_size){
+			for (int i = 0; i < 4; i++){
+				ch = arr[j + i];
+				num += ((ch & 0xFF) << (8*i));
+			}
+			j += 5;
+			binaryStr += StrToInt(num);
+			binaryStr += ' ';
+			num = 0;
+		}
+	}
+	return binaryStr;
+}
+//---------------------------------------------------------------------------
+void __fastcall TMainForm::readFileInput(
+    std::ifstream &fileName, TObject* Sender)
+{
+	String binaryStr = "";
+    char ch;
+    int i = 0;
+    size = 65535;
+	src = new char[size];
+	unsigned char byte;
+    while (fileName.read(&ch, 1)) {
+        if (i >= size) {
+			src = resizeArray(src, size);
+		}
+        src[i] = ch;
+        i++;
+    }
+	size = i;
+	binaryStr = printArr(src, size);
+	reSrcText->Lines->Text = binaryStr;
+	fileName.close();
+}
+//---------------------------------------------------------------------------
+void __fastcall TMainForm::saveFileInput(
+    std::ofstream &fileName, TObject* Sender)
+{
+    fileName.write(res, res_size);
+    Application->MessageBox(
+        L"Файл сохранен!", L"Готово!", MB_OK | MB_ICONWARNING);
+    fileName.close();
+}
+//---------------------------------------------------------------------------
+void __fastcall TMainForm::btFileClick(TObject* Sender)
+{
+    //std::ifstream fileName;
+    std::wstring pathToFile;
+    TErrorCode error;
+    if (OpenTextFileDialog1->Execute()) {
+        pathToFile = OpenTextFileDialog1->FileName.c_str();
+
+        std::ifstream fileName(pathToFile, std::ios::binary);
+
+        error = CORRECT;
+        if (error == CORRECT) {
+            error = isFileExist(pathToFile);
+        }
+        if (error == CORRECT) {
+            //fileName.open(pathToFile, std::ios::binary);
+            error = isFileReadable(fileName);
+        }
+        if ((error == CORRECT) &&
+            fileName.peek() == std::ifstream::traits_type::eof()) {
+            error = FILE_IS_EMPTY;
+        }
+        if (error == CORRECT) {
+            readFileInput(fileName, Sender);
+        }
+        if (error != CORRECT) {
+            Application->MessageBox(
+                ERR[error].c_str(), L"Ошибка!", MB_OK | MB_ICONWARNING);
+        }
+    }
+}
+//---------------------------------------------------------------------------
+int extended_gcd(int a, int b, int &x, int &y)
+{
+    x = 1;
+    y = 0;
+    int x1 = 0, y1 = 1, a1 = a, b1 = b;
+    while (b1) {
+        int q = a1 / b1;
+        a1 %= b1;
+        std::swap(a1, b1);
+        x -= q * x1;
+        std::swap(x, x1);
+        y -= q * y1;
+        std::swap(y, y1);
+    }
+    return a1;
+}
+//---------------------------------------------------------------------------
+bool is_prime(long long n) {
+	if (n < 2) return false;
+    for (long long i = 2; i * i <= n; i++)
+        if (n % i == 0) return false;
+    return true;
+}
+//---------------------------------------------------------------------------
+void __fastcall TMainForm::btCipherClick(TObject* Sender)
+{
+	TErrorCode error = CORRECT;
+    int n, p, q, b, x, y;
+    String resStr = "";
+
+    p = StrToInt(edP->Text);
+    q = StrToInt(edQ->Text);
+    b = StrToInt(edB->Text);
+	if (!extended_gcd(p, q, x, y)) {
+		error = NON_NUMERIC;
+		Application->MessageBox(
+			L"Не взаимно простые P, Q!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+	if (!is_prime(p)) {
+		error = NON_NUMERIC;
+		Application->MessageBox(
+			L"Не простое P!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+	if (!is_prime(q)) {
+		error = NON_NUMERIC;
+		Application->MessageBox(
+			L"Не простое Q!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+    if (p % 4 != 3) {
+        error = NON_NUMERIC;
+        Application->MessageBox(
+            L"P mod 4 = 3 не выполнился!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+    }
+    if (q % 4 != 3) {
+        error = NON_NUMERIC;
+        Application->MessageBox(
+            L"Q mod 4 = 3 не выполнился!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+    }
+    n = p * q;
+    if (b >= n) {
+		error = NON_NUMERIC;
+        Application->MessageBox(
+            L"b < n не выполнолось", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+	if (n < 256) {
+		error = NON_NUMERIC;
+        Application->MessageBox(
+			L"n < 256", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+
+	if (reSrcText->Text.Length() != 0 && error == CORRECT) {
+        reOpenKey->Lines->Text = "n = " + IntToStr(n) + "\nb = " + IntToStr(b);
+        reCloseKey->Lines->Text = "p = " + IntToStr(p) + "\nq = " + IntToStr(q);
+        char ch;
+		int num = 0;
+		res_size = 0;
+		int c;
+		int temp_size = size;
+		temp_size *= 4;
+		res = new char[temp_size];
+		for (int j = 0; j < size; j++) {
+			ch = src[j];
+
+			num = ch & 0xff;
+			//num = 51;
+			c = (num * (num + b)) % n;
+			for (int i = 0; i < 4; i++){
+				res[res_size] = ((c >> (8 * i)) & 0xFF);
+				//Application->MessageBox(
+				//	IntToHex((c >> (8 * i)) & 0xFF).w_str(), L"Ошибка!", MB_OK | MB_ICONWARNING);
+				//Application->MessageBox(
+				//	IntToHex(res[res_size]).w_str(), L"Ошибка!", MB_OK | MB_ICONWARNING);
+				res_size++;
+			}
+			//res_size += 4;
+			res[res_size] = 0xFF;
+			//Application->MessageBox(
+			//		IntToHex(res[res_size]).w_str(), L"Ошибка!", MB_OK | MB_ICONWARNING);
+			res_size++;
+			if (res_size + 5 > temp_size) {
+				res = resizeArray(res, temp_size);
+			}
+			num = 0;
+		}
+		//for (int i = 0; i < res_size; i++) {
+		//    Application->MessageBox(
+		//			IntToHex(res[i]).w_str(), L"Ошибка!", MB_OK | MB_ICONWARNING);
+		//}
+		String binaryStr = "";
+		binaryStr = print_sif_Arr(res, res_size);
+		reDestText->Lines->Text = binaryStr;
+	} else if (error == CORRECT){
+		Application->MessageBox(
+			L"Выберите файл!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+}
+//---------------------------------------------------------------------------
+unsigned int get_mi(long long di, int b, int n){
+	unsigned int mi;
+	if ((di - b)%2 == 0) {
+		mi = ((-b+di)/2)%n;
+	} else {
+		mi = ((-b+n+di)/2)%n;
+	}
+	return mi;
+}
+
+long long mul_mod(long long a, long long b, long long mod) {
+    long long res = 0;
+    a %= mod;
+    while (b > 0) {
+        if (b % 2 == 1) res = (res + a) % mod;
+        a = (a * 2) % mod;
+        b /= 2;
+    }
+    return res;
+}
+
+long long modular_pow(long long base, long long exp, long long mod) {
+    long long res = 1;
+    base %= mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) res = mul_mod(res, base, mod);
+		base = mul_mod(base, base, mod);
+        exp /= 2;
+    }
+    return res;
+}
+//---------------------------------------------------------------------------
+void __fastcall TMainForm::btDecipherClick(TObject* Sender)
+{
+	TErrorCode error = CORRECT;
+    int n, p, q, b, x, y;
+    String resStr = "";
+
+    p = StrToInt(edP->Text);
+    q = StrToInt(edQ->Text);
+    b = StrToInt(edB->Text);
+	if (!extended_gcd(p, q, x, y)) {
+        error = NON_NUMERIC;
+        Application->MessageBox(
+            L"Не взаимно простые P, Q!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+    if (!is_prime(p)) {
+		error = NON_NUMERIC;
+		Application->MessageBox(
+			L"Не простое P!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+	if (!is_prime(q)) {
+		error = NON_NUMERIC;
+		Application->MessageBox(
+			L"Не простое Q!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+    if (p % 4 != 3) {
+        error = NON_NUMERIC;
+        Application->MessageBox(
+            L"P mod 4 = 3 не выполнился!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+    }
+    if (q % 4 != 3) {
+        error = NON_NUMERIC;
+        Application->MessageBox(
+            L"Q mod 4 = 3 не выполнился!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+    }
+    n = p * q;
+    if (b >= n) {
+        error = NON_NUMERIC;
+        Application->MessageBox(
+            L"b < n не выполнолось", L"Ошибка!", MB_OK | MB_ICONWARNING);
+    }
+    if (n < 256) {
+		error = NON_NUMERIC;
+        Application->MessageBox(
+			L"n < 256", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+	if (reSrcText->Text.Length() != 0 && error == CORRECT) {
+        reOpenKey->Lines->Text = "n = " + IntToStr(n) + "\nb = " + IntToStr(b);
+        reCloseKey->Lines->Text = "p = " + IntToStr(p) + "\nq = " + IntToStr(q);
+        char ch;
+		unsigned int num = 0;
+		res_size = 0;
+		unsigned int d, m = 0;
+		int temp_size = size;
+		temp_size /= 4;
+		res = new char[temp_size];
+		int j = 0;
+		while (j < size) {
+			for (int i = 0; i < 4; i++){
+				ch = src[j + i];
+				num += ((ch & 0xFF) << (8*i));
+			}
+			j += 5;
+			d = (unsigned int)(b*b + 4*num)%n;
+			//d = (unsigned int)(((long long)b * b + 4 * num) % n);
+			//long long mp = (long long)sqrt(d)%p;
+			//long long mq = (long long)sqrt(d)%q;
+            long long mp = modular_pow(d, (p + 1) / 4, p);
+			long long mq = modular_pow(d, (q + 1) / 4, q);
+			extended_gcd(p, q, x, y);
+			long long d1 = (x*p*mq + y*q*mp)%n;
+			long long d2 = n - d1;
+			long long d3 = (x*p*mq - y*q*mp)%n;
+			long long d4 = n - d3;
+			long long m1 = get_mi(d1, b, n);
+			long long m2 = get_mi(d2, b, n);
+			long long m3 = get_mi(d3, b, n);
+			long long m4 = get_mi(d4, b, n);
+			if (m1 < 256) {
+				m = (unsigned int)m1;
+			} else if (m2 < 256) {
+				m = (unsigned int)m2;
+			} else if (m3 < 256) {
+				m = (unsigned int)m3;
+			} else if (m4 < 256) {
+				m = (unsigned int)m4;
+			}
+			res[res_size] = m;
+			res_size++;
+			if (res_size > temp_size) {
+				res = resizeArray(res, temp_size);
+			}
+			num = 0;
+            m = 0;
+		}
+		String binaryStr = "";
+		binaryStr = printArr(res, res_size);
+		reDestText->Lines->Text = binaryStr;
+	} else if (error == CORRECT){
+		Application->MessageBox(
+			L"Выберите файл!", L"Ошибка!", MB_OK | MB_ICONWARNING);
+	}
+}
+//---------------------------------------------------------------------------
+void __fastcall TMainForm::reSrcTextChange(TObject* Sender)
+{
+    reDestText->Text = "";
+}
+//---------------------------------------------------------------------------
+void __fastcall TMainForm::N4Click(TObject* Sender)
+{
+    //std::ofstream fileName;
+    std::wstring pathToFile;
+    TErrorCode error;
+    if (SaveTextFileDialog1->Execute()) {
+        pathToFile = SaveTextFileDialog1->FileName.c_str();
+
+        std::ofstream fileName(pathToFile, std::ios::binary);
+
+        error = CORRECT;
+        if (error == CORRECT) {
+            //error = isFileExist(pathToFile);
+        }
+        if (error == CORRECT) {
+            //fileName.open(pathToFile, std::ios::binary);
+            error = isFileWritable(fileName);
+        }
+        if (error == CORRECT) {
+            saveFileInput(fileName, Sender);
+        }
+        if (error != CORRECT) {
+            Application->MessageBox(
+                ERR[error].c_str(), L"Ошибка!", MB_OK | MB_ICONWARNING);
+        }
+    }
+}
+//---------------------------------------------------------------------------
+
